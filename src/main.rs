@@ -1,6 +1,11 @@
 use rand::prelude::*;
-use ggez::{Context, ContextBuilder, GameResult};
+use ggez::{Context, ContextBuilder, GameResult, graphics};
 use ggez::event::{self, EventHandler};
+
+mod board;
+use board::Board;
+
+
 
 struct GameState {
     board: Board,
@@ -19,90 +24,31 @@ impl EventHandler for GameState {
         Ok(())
     }
 
-    fn draw(&mut self, _ctx: &mut Context) -> GameResult {
+    fn draw(&mut self, ctx: &mut Context) -> GameResult {
+        self.board.draw(ctx);
+        // Finally we call graphics::present to cycle the gpu's framebuffer and display
+        // the new frame we just drew.
+        graphics::present(ctx)?;
+        // We yield the current thread until the next update
+        ggez::timer::yield_now();
+        // And return success.`
         Ok(())
     }
 }
 
 
-struct Board {
-    size: usize,
-    blocks: Vec<Block>,
-    conflicts: i32,
-}
 
-impl Board {
-    fn new(size: usize) -> Self {
-        Self {
-            size,
-            blocks: vec![Block::default(); size*size],
-            conflicts: 0
-        }
-    }
-
-    fn new_from_queens(queens: Vec<usize>) -> Self {
-        let size = queens.len();
-        let mut blocks = vec![Block::default(); size*size];
-        for queen in queens {
-            blocks[queen] = Block::queen();
-        }
-        Self {
-            size,
-            blocks,
-            conflicts: 0,
-        }
-    }
-
-    fn initialize_queens(&mut self) {
-        let mut rng = rand::thread_rng();
-        for row in 0..self.size {
-            let col = rng.gen_range(0, self.size);
-            self[row * self.size + col] = Block::queen();
-        }
-    }
-}
-
-impl Default for Board {
-    fn default() -> Self {
-        Self::new(8)
-    }
-}
-
-struct Block {
-    state: BlockState,
-    attacked: bool,
-}
-
-impl Block {
-   fn queen() -> Self {
-        Self {
-            state: BlockState::Queen,
-            attacked: false,
-        }
-    }
-}
-
-impl Default for Block {
-    fn default() -> Self {
-        Self {
-            state: BlockState::Empty,
-            attacked: false
-        }
-    }
-}
-
-enum BlockState {
-    Empty,
-    Queen,
-    AttackedQueen,
-}
-
-
-fn main() {
-    let ctx = &mut ContextBuilder::new("8 queens", "Gunthorian")
+fn main() -> GameResult {
+    let (ctx, events_loop) = &mut ContextBuilder::new("8 queens", "Gunthorian")
+        // Next we set up the window. This title will be displayed in the title bar of the window.
+        .window_setup(ggez::conf::WindowSetup::default().title("Snake!"))
+        // Now we get to set the size of the window, which we use our SCREEN_SIZE constant from earlier to help with
+        .window_mode(ggez::conf::WindowMode::default().dimensions(board::SCREEN_SIZE.0, board::SCREEN_SIZE.1))
         .build()
         .expect("context builder failed");
 
-
-    println!("Hello, world!");
+    // Next we create a new instance of our GameState struct, which implements EventHandler
+    let state = &mut GameState::new();
+    // And finally we actually run our game, passing in our context and state.
+    event::run(ctx, events_loop, state)
 }
